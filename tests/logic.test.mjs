@@ -289,3 +289,22 @@ test("applyResult survives 2000 random model results without throwing or growing
   assert.equal(new Set(state.tasks.map((t) => t.id)).size, state.tasks.length);
   assert.equal(new Set(state.projects.map((p) => p.id)).size, state.projects.length);
 });
+
+test("renames translate old project and task names, and new tasks join the renamed project", () => {
+  const base = applyResult(emptyState(), { projects: [{ name: "సమర్పణలు", kind: "assignment" }], tasks: [{ title: "అసైన్మెంట్", project: "సమర్పణలు", due: null }] }, TODAY).state;
+  const taskId = base.tasks[0].id;
+  const out = applyResult(base, {
+    renames: [{ project_from: "సమర్పణలు", to: "Submissions" }, { task_id: taskId, to: "Submit assignment" }],
+    tasks: [{ title: "Submit project", project: "Submissions", due: null }],
+  }, TODAY).state;
+  assert.equal(out.projects.length, 1);
+  assert.equal(out.projects[0].name, "Submissions");
+  assert.deepEqual(out.tasks.map((t) => t.title).sort(), ["Submit assignment", "Submit project"]);
+});
+
+test("renaming into an existing project merges instead of duplicating", () => {
+  let s = applyResult(emptyState(), { projects: [{ name: "Submissions" }, { name: "సమర్పణలు" }], tasks: [{ title: "A", project: "Submissions" }, { title: "B", project: "సమర్పణలు" }] }, TODAY).state;
+  s = applyResult(s, { renames: [{ project_from: "సమర్పణలు", to: "Submissions" }] }, TODAY).state;
+  assert.equal(s.projects.length, 1);
+  assert.equal(s.tasks.length, 2);
+});

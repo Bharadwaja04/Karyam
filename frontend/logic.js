@@ -197,6 +197,25 @@ export function applyResult(state, result, today) {
     return p;
   };
 
+  // Translate old non-English names first, so new tasks land in the renamed project.
+  for (const r of result.renames || []) {
+    if (r.task_id) {
+      const t = s.tasks.find((x) => x.id === r.task_id);
+      if (t && r.to) t.title = String(r.to).slice(0, 120);
+    } else if (r.project_from && r.to) {
+      const old = find(r.project_from);
+      if (!old) continue;
+      const target = s.projects.find((p) => p !== old && norm(p.name) === norm(r.to));
+      if (target) {
+        for (const t of s.tasks) if (t.projectId === old.id) t.projectId = target.id;
+        s.projects = s.projects.filter((p) => p !== old);
+      } else {
+        old.name = String(r.to).slice(0, 60);
+      }
+      stats.updated++;
+    }
+  }
+
   for (const p of result.projects || []) ensure(p.name, p);
 
   for (const t of result.tasks || []) {

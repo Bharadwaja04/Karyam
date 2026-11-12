@@ -374,3 +374,20 @@ def test_selftest_with_nothing_configured_explains_what_is_missing():
     body = client.post("/api/selftest").json()
     assert body["llm"]["ok"] is False and "Settings" in body["llm"]["message"]
     assert body["gnani"]["ok"] is False and "Settings" in body["gnani"]["message"]
+
+
+def test_normalize_keeps_only_valid_renames():
+    from datetime import date
+    from backend.app import normalize_result, ExtractRequest
+    state = {"projects": [{"name": "సమర్పణలు", "tasks": [{"id": "t1", "title": "అసైన్మెంట్"}]}]}
+    req = ExtractRequest(transcript="x", today="2026-11-12", state=state)
+    obj = {"renames": [
+        {"project_from": "సమర్పణలు", "to": "Submissions"},
+        {"task_id": "t1", "to": "Submit assignment"},
+        {"task_id": "nope", "to": "Ghost"},
+        {"project_from": "unknown", "to": "X"},
+        {"task_id": "t1", "to": ""},
+        "junk",
+    ]}
+    out = normalize_result(obj, req, date(2026, 11, 12))
+    assert out["renames"] == [{"project_from": "సమర్పణలు", "to": "Submissions"}, {"task_id": "t1", "to": "Submit assignment"}]

@@ -214,6 +214,7 @@ Rules:
 11. Recurring: if the user says something repeats ("every day at 8", "every Monday", "on weekdays"), set the task's "repeat" to "daily", "weekdays" or "weekly" and give the first occurrence in "due" and "time". Never invent repetition.
 12. "reply" is what you say back out loud: one or two short, friendly sentences in English. Answer questions about their plan ("what's due today?", "what's left for the assignment?") using ONLY the projects and tasks provided; never invent items; if you don't know, say so. Name at most three items, then "and N more". Acknowledge what you did ("Done, I'll remind you at 5."). Do not repeat a question you are also putting in "questions".
 13. "remember" holds durable personal facts or preferences the user states for you to keep ("my exams start 12 November", "I study best at night"): short sentences, at most 3, never tasks, never anything already in "memory". Use "memory" to personalise replies and planning.
+14b. EXISTING ITEMS IN ANOTHER LANGUAGE: if any existing project name or task title you were given is not in English (for example Telugu script), add an entry to "renames" with its English translation: {"project_from": "<exact old project name>", "to": "<English name>"} for a project, or {"task_id": "<id>", "to": "<English title>"} for a task. Then use the English project name in any new tasks. Do this for every such item, every time.
 14. "summary" is one short sentence in English saying what you did.
 
 JSON shape:
@@ -224,6 +225,7 @@ JSON shape:
   "updates": [{"task_id": string, "action": "done"|"move"|"delete", "due": null|"YYYY-MM-DD"|{"in_days": int}|{"in_minutes": int}, "time": null|"HH:MM"}],
   "questions": [{"text": string, "project": string|null, "options": [string]}],
   "answered": [string],
+  "renames": [{"project_from": string, "to": string} | {"task_id": string, "to": string}],
   "reply": string,
   "remember": [string]
 }"""
@@ -420,6 +422,18 @@ def normalize_result(obj: dict[str, Any], req: ExtractRequest, today: date) -> d
         })
 
     answered = [str(a) for a in as_list(obj.get("answered"), 20) if str(a) in pending_ids]
+    project_names = {p["name"].lower() for p in state_projects}
+    renames = []
+    for r in as_list(obj.get("renames"), 80):
+        if not isinstance(r, dict):
+            continue
+        to = clean(r.get("to"), 120)
+        if not to:
+            continue
+        if r.get("task_id") is not None and str(r.get("task_id")) in known_task_ids:
+            renames.append({"task_id": str(r["task_id"]), "to": to[:120]})
+        elif clean(r.get("project_from"), 60).lower() in project_names:
+            renames.append({"project_from": clean(r.get("project_from"), 60), "to": to[:60]})
     known = {m.lower() for m in req.memory}
     remember = []
     for m in as_list(obj.get("remember"), 12):
@@ -437,6 +451,7 @@ def normalize_result(obj: dict[str, Any], req: ExtractRequest, today: date) -> d
         "updates": updates,
         "questions": questions,
         "answered": answered,
+        "renames": renames,
     }
 
 
