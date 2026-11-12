@@ -54,7 +54,7 @@ let settings = {
   gnaniKey: "",
   sttLang: "en-IN",
   ttsVoice: "Poorvi",
-  ttsLang: "auto",
+  ttsLang: "en-IN",
   speak: true,
   notify: true,
   speakReminders: true,
@@ -63,6 +63,8 @@ let settings = {
   llmKey: "",
   ...readJSON(SETTINGS_KEY, {}),
 };
+// One-time: earlier builds defaulted the voice to "auto"/Telugu. Spoken replies are English now.
+if (!settings.ttsEnglishV2) { settings.ttsLang = "en-IN"; settings.ttsEnglishV2 = true; try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {} }
 let server = { server_gnani_key: false, server_llm: false };
 let fresh = new Set();
 let undoSnapshot = null;
@@ -751,6 +753,7 @@ function saveSettings() {
     sttLang: $("sttLang").value,
     ttsVoice: $("ttsVoice").value.trim() || "Poorvi",
     ttsLang: $("ttsLang").value,
+    ttsEnglishV2: true,
     speak: $("speakQuestions").checked,
     notify: $("notifyOn").checked,
     speakReminders: $("speakReminders").checked,
